@@ -1,3 +1,5 @@
 .idea/
 .DS_Store
 .DS_STORE
+__pycache__/
+utilities/generatedChuckFiles/[0-9]*.ck
