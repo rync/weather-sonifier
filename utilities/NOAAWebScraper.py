@@ -20,19 +20,23 @@ def format_wind_speed(str):
     # This will extract cardinality, value, and unit from the space-delimited string,
     #   e.g. 'S 12 mph' becomes ['S', 12.0, 'mph']
     # The data is then returned as an object containing the cardinality, value, and unit.
-    valList = str.split(' ')
-    return {
-        'cardinality': valList[0],
-        'value': float(valList[1]),
-        'unit': valList[2]
-    }
+    try:
+        valList = str.split(' ')
+        return {
+            'cardinality': valList[0],
+            'value': float(valList[1]),
+            'unit': valList[2]
+        }
+    except:
+        # When there is no perceptible wind, NOAA returns 'Calm'. We'll return None.
+        return None
 
 def format_humidity(str):
     # This method handles the unique case of humidity, which is presented without a delimiting character.
     # In example, '83%' becomes [83, '%']
     # The data is then returned as an object containing the value and unit.
     return {
-        'value': float(re.find('\d+').group(0)),
+        'value': float(str.split('%')[0]),
         'unit': '%'
     }
 
@@ -63,8 +67,13 @@ def retrieve_noaa_page(lat=40.44, lon=-80.07):
     # Given a location latitude and longitude, this method will format the corresponding URL
     #   for the local forecast page on the NOAA weather website, and then return the webpage
     #   as a 'bytes' object type for use with BeautifulSoup or another similar DOM parser.
+    # Provided that the response code is a 200.
     url = 'https://forecast.weather.gov/MapClick.php?lat={}&lon={}'.format(lat, lon)
-    return urlopen(url).read()
+    page = urlopen(url)
+    if page.getcode() is 200:
+        return page.read()
+    else:
+        return None
 
 def scrape_noaa_page(webpage):
     # Given the bytes array of data for the NOAA website, this method will parse the page DOM
@@ -82,7 +91,7 @@ def scrape_noaa_page(webpage):
     ]
 
     # The rest of the data can be extracted from the list of rows.
-    weather['humidity'] = currentConditionsRows[0].findChildren('td')[1].text
+    weather['humidity'] = format_humidity(currentConditionsRows[0].findChildren('td')[1].text)
     weather['wind_speed'] = format_wind_speed(currentConditionsRows[1].findChildren('td')[1].text)
     weather['barometer'] = extract_multiple_readings(currentConditionsRows[2].findChildren('td')[1].text)
     weather['dewpoint'] = extract_multiple_readings(currentConditionsRows[3].findChildren('td')[1].text, '°')
